@@ -28,20 +28,26 @@ def api():
 def server():
     """Start HTTP server"""
     
+    session.pause()
     Server().start()
+    session.resume()
 
 
 @task
 def source():
     """Generate source (development) version"""
 
+    # Configure build
+    session.setField("debug", True)
+    # session.setLocales(["en", "de"])
+
     # Initialize shared objects
     assetManager = AssetManager(session).addSourceProfile()
-    outputManager = OutputManager(session, assetManager, compressionLevel=0, formattingLevel=1)
+    outputManager = OutputManager(session, assetManager, compressionLevel=0, formattingLevel=2)
     fileManager = FileManager(session)
     
     # Store kernel script
-    outputManager.storeKernel("$prefix/script/kernel.js", debug=True)
+    outputManager.storeKernel("{{prefix}}/script/kernel.js", bootCode="$${name}.Kernel.boot();")
     
     # Process every possible permutation
     for permutation in session.permutate():
@@ -50,12 +56,16 @@ def source():
         classes = Resolver(session).addClassName("$${name}.Main").getSortedClasses()
         
         # Writing source loader
-        outputManager.storeLoader(classes, "$prefix/script/$${name}-$permutation.js", "new $${name}.Main;")
+        outputManager.storeLoader(classes, "{{prefix}}/script/$${name}-{{id}}.js", "new $${name}.Main();")
 
 
 @task
 def build():
     """Generate deployable and combined build version"""
+
+    # Configure build
+    session.permutateField("debug", True)
+    # session.setLocales(["en", "de"])
 
     # Initialize shared objects
     assetManager = AssetManager(session).addBuildProfile()
@@ -66,10 +76,10 @@ def build():
     outputManager.deployAssets(["$${name}.Main"])
 
     # Write kernel script
-    outputManager.storeKernel("$prefix/script/kernel.js", debug=True)
+    outputManager.storeKernel("{{prefix}}/script/kernel.js", bootCode="$${name}.Kernel.boot();")
 
     # Copy files from source
-    fileManager.updateFile("source/index.html", "$prefix/index.html")
+    fileManager.updateFile("source/index.html", "{{prefix}}/index.html")
 
     # Process every possible permutation
     for permutation in session.permutate():
@@ -78,5 +88,5 @@ def build():
         classes = Resolver(session).addClassName("$${name}.Main").getSortedClasses()
 
         # Compressing classes
-        outputManager.storeCompressed(classes, "$prefix/script/$${name}-$permutation.js", "new $${name}.Main;")
+        outputManager.storeCompressed(classes, "{{prefix}}/script/$${name}-{{id}}.js", "new $${name}.Main();")
 

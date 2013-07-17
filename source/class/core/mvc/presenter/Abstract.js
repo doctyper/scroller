@@ -185,8 +185,44 @@ core.Class("core.mvc.presenter.Abstract",
     ======================================================
     */
 
+    /**
+     * {Array} Returns an array of all view names.
+     */
+    getAllViewNames : function() {
+      return core.Object.getKeys(this.__views);
+    },
+
+
+    /**
+     * Executes @callback {Function} in @context {Object?} for every created view.
+     * Optionally also creates the views which have not been created 
+     * yet dynamically when @all {Boolean} is set to `true`.
+     */
+    forEachView : function(callback, context, all) 
+    {
+      var db = this.__views;
+      var view;
+
+      for (var name in db) 
+      {
+        var entry = db[name];
+        if (!entry.__placeholder) {
+          view = entry;
+        } else if (all) {
+          view = this.getView(name);
+        } else {
+          continue;
+        }
+
+        context ? callback.call(context, view) : callback(view);
+      }
+    },
+
+
     /** 
-     * {Object} Returns a view by its @name {String}. 
+     * {Object} Returns a view by its @name {String}. If the view was only
+     * registered for lazy creation this method will dynamically create it with
+     * the parameters given at registration.
      */
     getView : function(name) 
     {
@@ -194,7 +230,8 @@ core.Class("core.mvc.presenter.Abstract",
         core.Assert.isType(name, "String", "Invalid view name!");
       }
 
-      return this.__views[name];
+      var entry = this.__views[name];
+      return entry.__placeholder ? this.createView(name) : entry;
     },
 
 
@@ -262,26 +299,80 @@ core.Class("core.mvc.presenter.Abstract",
      */
     createView : function(name, construct, varargs) 
     {
-      var args = arguments;
+      this.log("Creating view: " + name);
 
-      if (args.length > 2)
+      var db = this.__views;
+
+      if (jasy.Env.isSet("debug")) 
       {
-        if (args.length == 3) {
-          var view = new construct(this, args[2]);
-        } else if (args.length == 4) {
-          var view = new construct(this, args[2], args[3]);
-        } else if (args.length == 5) {
-          var view = new construct(this, args[2], args[3], args[4]);
-        } else if (jasy.Env.isSet("debug")) {
-          throw new Error("Too many arguments!");
+        if (name in db && !db[name].__placeholder) {
+          throw new Error("View name " + name + " is already in use!");  
         }
+
+        if (construct) {
+          core.Assert.isType(construct, "Function", "Invalid view constructor!");  
+        }
+      }
+
+      var args = arguments.length > 2 ? Array.prototype.slice.call(arguments, 2) : null;
+
+      if (construct == null)
+      {
+        var config = db[name];
+
+        if (jasy.Env.isSet("debug")) 
+        {
+          if (!config) {
+            throw new Error("Missing constructor or registration for creating the view " + name + "!");
+          }
+
+          if (!config.__placeholder) {
+            throw new Error("Could not create view " + name + " from invalid registration!");
+          }
+        }
+
+        var construct = config.construct;
+        var args = args || config.args;
+      }
+
+      if (args)
+      {
+        var view = core.Object.createFrom(construct);
+        construct.apply(view, args.slice(2));
       }
       else
       {
         var view = new construct(this);
       }
       
-      return this.addView(name, view);
+      db[name] = view;
+      return view;
+    },
+
+
+    /**
+     * Registers the given view @construct {Function} under @name {String} for lazy instantiation. All given
+     * optional @varargs {arguments?...} are passed to the construct method.
+     */
+    registerView : function(name, construct, varargs)
+    {
+      var db = this.__views;
+
+      if (jasy.Env.isSet("debug")) 
+      {
+        if (name in db) {
+          throw new Error("View name " + name + " is already in use!");  
+        }
+
+        core.Assert.isType(construct, "Function", "Invalid view constructor!");
+      }
+
+      db[name] = 
+      {
+        __placeholder : true,
+        construct : construct,
+        args : arguments.length > 2 ? Array.prototype.slice.call(arguments, 2) : null
+      };
     },
 
 

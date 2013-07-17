@@ -167,20 +167,20 @@ core.Class("core.mvc.view.Dom",
     */
 
     // Interface implementation
-    show : function()
+    show : function(approach)
     {
       var elem = this.getRoot();
       if (!elem) {
         return;
       }
 
-      elem.style.display = "";
+      elem.style.display = "block";
       this.fireEvent("show");
     },
 
 
     // Interface implementation
-    hide : function()
+    hide : function(approach)
     {
       var elem = this.getRoot();
       if (!elem) {
