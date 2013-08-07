@@ -1,0 +1,15 @@
+{
+	"name": "scroller",
+	"version": "1.0.0",
+	"main": ["dist/scroller.js"],
+	"ignore": [
+		".editorconfig",
+		".jshintrc",
+		"Gruntfile.js",
+		"package.json",
+		"README.md",
+		"src/**/*",
+		"test/**/*"
+	],
+	"dependencies": {}
+}
